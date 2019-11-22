@@ -85,7 +85,7 @@ dnam_prepare <- function(ss , beta) {
 
 d = dnam_prepare(beta = uenv$normalized_betas_sesame , ss = uenv$ss)
 d$grp = ifelse(d$SpeciesLatinName %in% hl_species , "Grp" , " Other")
-all_cpg = names(d) [ grep("^cg\\d|rs\\d|ch\\.\\d",names(d)) ]
+all_cpg = names(d) [ grep("^cg\\d|ch\\.\\d",names(d)) ]
 
 data_col = NULL
 data_col = eval(parse(text=cpg_set_for_average))
