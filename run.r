@@ -6,27 +6,31 @@ setwd("/home/xiang/DNAm/github_dnamage/BMR")
 base_name = c(
 	"/home/xiang/DNAm/N13.2018-9246RodentsSkinGorbunova",
 	"/home/xiang/DNAm/N24.2019-9058MammalsLiverVeraGorbunova"
-	)[2]
-base_number = c("13","24") [2]
+	) [index_tissue]
+base_number = c("13","24") [index_tissue]
 
 info_name = "/home/xiang/DNAm/annotation_info"
 
+
+
 cpg_set_for_average = c(
-	"all_cpg" , 
+	"intersect( top_n_conserved , union( mm10_island_cpg , hg38_island_cpg ))" ,
+	"setdiff( top_n_conserved , union( mm10_island_cpg , hg38_island_cpg ) )" ,
+
+##old
 	"setdiff( all_cpg , mappable_cpg )" , 
 	"intersect(all_cpg , mappable_cpg )" , 
 	"top1000conserved" , 
 	"mm10_island_cpg" , 
-	"hg38_island_cpg" ) [4]
+	"hg38_island_cpg" ) [index_set]
 
-
-hl_species = c('Nannospalax ehrenbergi','Heterocephalus glaber','Hydrochoerus hydrochaeris','Spalax galili')
-
+keep_species = c("Mus musculus" , "Rattus norvegicus" , "Spalax galili" , "Nannospalax ehrenbergi")
+hl_species = c('Nannospalax ehrenbergi' , 'Spalax galili')
 
 cat("base_name: ",base_name,"\n")
 cat("base_number: ",base_number,"\n")
 cat("cpg_set_for_average: ",cpg_set_for_average,"\n")
-
+cat("top_n: ",top_n,"\n")
 
 ######################################################
 ######################################################
@@ -35,6 +39,7 @@ if(!exists("uenv")) uenv = new.env()
 
 load(file.path(base_name , "NormalizedData" , "all_probes_sesame_normalized.Rdata") , uenv)
 uenv$ss = read.csv(file.path(base_name,sprintf("SampleSheetMinimal%s.csv", base_number)))
+
 	
 if(!exists("island",envir=uenv))
 	uenv$island = read.csv(file.path(info_name,"probes_CGislands_mm10_hg38.csv"))
@@ -45,15 +50,15 @@ if(!exists("coord",envir=uenv))
 if(!exists("mappability",envir=uenv))
 	uenv$mappability = read.csv(file.path(info_name,"MammalChip_GenomeCoords_021119.tsv"),sep='\t')
 
+## Based on old coord file
+## mappable_cpg = (uenv$mappability %>% filter( !is.na(.data[['Northern_Israeli_blind_mole_rat']]) ))$CpG_ID
+## mappable_cpg = substr(mappable_cpg,1,10)
 
-mappable_cpg = (uenv$mappability %>% filter( !is.na(.data[['Northern_Israeli_blind_mole_rat']]) ))$CpG_ID
-mappable_cpg = substr(mappable_cpg,1,10)
-
-## mappable_cpg = (uenv$coord %>% filter(.data$NannospalaxGalili!="" ))$probeID
+mappable_cpg = (uenv$coord %>% filter(.data$NannospalaxGalili!="" ))$probeID
 hg38_island_cpg = (uenv$island %>% filter( hg38_chr_island!="" ))$probeID
 mm10_island_cpg = (uenv$island %>% filter( mm10_chr_island!="" ))$probeID
 
-top1000conserved <-
+top_n_conserved <-
 	(function(){
 		# Grab top1000 most conserved CpGs 
 		# minus 1 because counting $CpG_ID 
@@ -62,9 +67,9 @@ top1000conserved <-
 		alist = uenv$coord
 		alist$num_in_species = rowSums(!(alist == "")) - 1 
 		trunlist = alist[order(-(alist$num_in_species)),,drop=F] 
-		trunlist[1:1000,,drop=F]
+		trunlist[1:top_n,,drop=F]
 	})()
-top1000conserved = top1000conserved$probeID
+top_n_conserved = top_n_conserved$probeID
 
 
 
@@ -84,6 +89,7 @@ dnam_prepare <- function(ss , beta) {
 }
 
 d = dnam_prepare(beta = uenv$normalized_betas_sesame , ss = uenv$ss)
+d = d[ d$SpeciesLatinName %in% keep_species,]
 d$grp = ifelse(d$SpeciesLatinName %in% hl_species , "Grp" , " Other")
 all_cpg = names(d) [ grep("^cg\\d|ch\\.\\d",names(d)) ]
 
@@ -92,17 +98,14 @@ data_col = eval(parse(text=cpg_set_for_average))
 
 d$gross_mean = rowMeans( d[, data_col] )
 
-p=plot_ly(d, y = ~gross_mean, x = ~SpeciesLatinName , 
+
+p = NULL
+p = plot_ly(d, y = ~gross_mean, x = ~SpeciesLatinName ,
 	color = ~SpeciesLatinName, 
 	size=~c(10,30)[factor(grp)], 
-	type="scatter" ,
-	hoverinfo = "text", 
-	text=~paste0(d$SpeciesLatinName,' (',d$age,')'))
+	type="box" ,
+	width = 1000, height = 800) %>%
+    layout( yaxis = list(range=c(0,1)) )
+
 print(p)
-
-
-
-
-
-
 
