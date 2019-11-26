@@ -1,8 +1,9 @@
 options(stringsAsFactors = FALSE)
 library(dplyr)
 library(plotly)
+library(htmltools)
 
-setwd("/home/xiang/DNAm/github_dnamage/BMR")
+setwd("/home/xiang/DNAm/github_BMR_NMR")
 base_name = c(
 	"/home/xiang/DNAm/N13.2018-9246RodentsSkinGorbunova",
 	"/home/xiang/DNAm/N24.2019-9058MammalsLiverVeraGorbunova"
@@ -39,8 +40,9 @@ if(!exists("uenv")) uenv = new.env()
 
 load(file.path(base_name , "NormalizedData" , "all_probes_sesame_normalized.Rdata") , uenv)
 uenv$ss = read.csv(file.path(base_name,sprintf("SampleSheetMinimal%s.csv", base_number)))
+uenv$ss[uenv$ss$SpeciesLatinName=="Spalax galili" , "SpeciesLatinName"] = "Nannospalax ehrenbergi"
 
-	
+
 if(!exists("island",envir=uenv))
 	uenv$island = read.csv(file.path(info_name,"probes_CGislands_mm10_hg38.csv"))
 
@@ -90,6 +92,7 @@ dnam_prepare <- function(ss , beta) {
 
 d = dnam_prepare(beta = uenv$normalized_betas_sesame , ss = uenv$ss)
 d = d[ d$SpeciesLatinName %in% keep_species,]
+d$SpeciesLatinName <- factor(d$SpeciesLatinName, levels = c("Mus musculus", "Rattus norvegicus", "Nannospalax ehrenbergi"))
 d$grp = ifelse(d$SpeciesLatinName %in% hl_species , "Grp" , " Other")
 all_cpg = names(d) [ grep("^cg\\d|ch\\.\\d",names(d)) ]
 
